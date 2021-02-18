@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="Dropbox.Api" Version="6.0.1" />
     <PackageReference Include="MMALSharp" Version="0.6.0" />
+    <PackageReference Include="ObjectDumper.NET" Version="3.0.20251.1" />
+    <PackageReference Include="sharpconfig" Version="3.2.9.1" />
   </ItemGroup>
 
 </Project>
