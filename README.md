@@ -17,6 +17,13 @@ Downsides:
  - Current solution is specific to the Raspberry Pi and only tested by me on a 4b
  - You will need to setup an 'app' in Dropbox and store an access token in plain text on the Pi
 
+Features:
+ - Ini File allows setting some camera settings like Shutter Speed, ISO, Exposure Compensation, ...
+ - Files are prefixed with a number that decreases every hour (well until the end of the day on 12/31/9999 anyway - no support will be provided after that date...) - this causes files from the most recent hour to be at the top of the file list in the default Dropbox sort order - if you have spent time in long Dropbox file lists I suspect that you may  appreciate this small detail...
+ - Very basic help on the command line
+ - Can use -WriteIni on the command line to generate a new ini file with the default settings
+ - The Date and Time the photo is taken is drawn into the picture for easy reference (the size of the Date and Time is scaled based on the width of the picture)
+
 ## Used By and In Building PiDropLapse
 Tools:
  - [Visual Studio IDE](https://visualstudio.microsoft.com/), [.NET Core (Linux, macOS, and Windows)](https://dotnet.microsoft.com/download/dotnet-core)
@@ -30,3 +37,5 @@ Hardware:
 Packages/Libraries/Services:
  - [dropbox/dropbox-sdk-dotnet: The Official Dropbox API V2 SDK for .NET](https://github.com/dropbox/dropbox-sdk-dotnet)
  - [techyian/MMALSharp: C# wrapper to Broadcom's MMAL with an API to the Raspberry Pi camera.](https://github.com/techyian/MMALSharp)
+ - [thomasgalliker/ObjectDumper: ObjectDumper is a utility which aims to serialize C# objects to string for debugging and logging purposes.](https://github.com/thomasgalliker/ObjectDumper)
+ - [cemdervis/SharpConfig: An easy to use CFG/INI configuration library for .NET.](https://github.com/cemdervis/SharpConfig)
