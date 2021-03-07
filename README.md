@@ -24,6 +24,9 @@ Features:
  - Can use -WriteIni on the command line to generate a new ini file with the default settings
  - The Date and Time the photo is taken is drawn into the picture for easy reference (the size of the Date and Time is scaled based on the width of the picture)
 
+Install Requirements:
+ - In addition to a stock Raspian install with camera enabled 'sudo apt-get install libgdiplus' is required.
+
 ## Used By and In Building PiDropLapse
 Tools:
  - [Visual Studio IDE](https://visualstudio.microsoft.com/), [.NET Core (Linux, macOS, and Windows)](https://dotnet.microsoft.com/download/dotnet-core)
