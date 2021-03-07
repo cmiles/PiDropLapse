@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Dropbox.Api;
 using Dropbox.Api.Files;
@@ -13,11 +14,19 @@ using MMALSharp.Common;
 using MMALSharp.Common.Utility;
 using MMALSharp.Handlers;
 using SharpConfig;
+using Unosquare.RaspberryIO;
+using Unosquare.RaspberryIO.Abstractions;
+using Unosquare.RaspberryIO.Peripherals;
+using Unosquare.WiringPi;
 
 namespace PiDropLapse
 {
     internal class Program
     {
+        private record DhtReading(bool ValidReading, double Fahrenheit, double Celsius, double HumidityPercentage);
+
+        private static TaskCompletionSource<object> _temperatureCompletionSource;
+
         private static async Task Main(string[] args)
         {
             //Simple parsing for help in the args
@@ -127,6 +136,7 @@ namespace PiDropLapse
                 MMALCameraConfig.StillResolution =
                     new Resolution(config.LongEdgeResolution / 16 * 9, config.LongEdgeResolution);
 
+            piCamera.ConfigureCameraSettings();
 
             using (var imgCaptureHandler = new ImageStreamCaptureHandler(targetFile.FullName))
             {
@@ -138,6 +148,39 @@ namespace PiDropLapse
             Console.WriteLine("Cleaning Up");
             piCamera.Cleanup();
 
+            //Console.WriteLine("Bootstrapping");
+
+            //Pi.Init<BootstrapWiringPi>();
+
+            //Console.WriteLine("Creating Sensor");
+
+            //var dht22Sensor = DhtSensor.Create(DhtType.Dht22, Pi.Gpio[BcmPin.Gpio04]);
+
+            //Console.WriteLine("New Taskcompletion");
+
+            //var temperatureCompletionSource = new TaskCompletionSource<DhtReading>();
+
+            //dht22Sensor.OnDataAvailable += (_, e) =>
+            //{
+            //    Console.WriteLine("Temperature reading event triggered");
+
+            //    if (!e.IsValid)
+            //    {
+            //        return;
+            //    }
+
+            //    Console.WriteLine($"DHT22 Temperature: {e.Temperature:0.00}°C {e.TemperatureFahrenheit:0.00}°F Humidity: {e.HumidityPercentage:P0}");
+
+            //    temperatureCompletionSource.TrySetResult(new DhtReading(true, e.TemperatureFahrenheit, e.Temperature, e.HumidityPercentage));
+            //};
+
+            //Console.WriteLine("Sensor Start");
+
+            //dht22Sensor.Start();
+
+            //Console.WriteLine("TCS Wait");
+
+            //var temperatureReading = await temperatureCompletionSource.Task;
 
             Console.WriteLine("Loading file to write date");
             Image bmp;
@@ -229,5 +272,6 @@ namespace PiDropLapse
 
             return testFont;
         }
+        
     }
 }
