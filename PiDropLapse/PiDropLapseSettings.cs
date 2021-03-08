@@ -8,6 +8,6 @@
         public int Iso { get; set; } = 0;
         public int LongEdgeResolution { get; set; } = 1280;
         public int Rotation { get; set; } = 0;
-        public int ShutterSpeed { get; set; } = 0;
+        public int ExposureTimeInMicroSeconds { get; set; } = 0;
     }
 }
