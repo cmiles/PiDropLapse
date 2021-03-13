@@ -1,304 +1,231 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Device.I2c;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using Dropbox.Api;
 using Dropbox.Api.Files;
-using Iot.Device.Bmxx80;
-using Iot.Device.Common;
 using MMALSharp;
 using MMALSharp.Common;
 using MMALSharp.Common.Utility;
 using MMALSharp.Handlers;
+using PiDropLapse;
 using SharpConfig;
-using UnitsNet;
+using static Crayon.Output;
 
-namespace PiDropLapse
+//
+// Help Block
+//
+
+//Simple parsing of command line for help in the args
+if (args.Length > 0 && args.Any(x => x.ToLower().Contains("help")))
 {
-    internal class Program
-    {
-        public static async Task<(double? temperatureFahrenheit, double? pressureMillibars)>
-            GetBmp280TemperatureAndPressure()
-        {
-            //
-            // Use BMP280
-            //  
-            var stationHeight = Length.FromFeet(2307); // Elevation of the sensor
+    Console.WriteLine(Green("PiDropLapse Help"));
+    Console.WriteLine("When you execute PiDropLapse it will attempt to:");
+    Console.WriteLine(" - Take a photo and save it in a sub directory called 'Drops'");
+    Console.WriteLine(" - Upload the File to Dropbox");
 
-            // bus id on the raspberry pi 3 and 4
-            const int busId = 1;
-            // set this to the current sea level pressure in the area for correct altitude readings
-            var defaultSeaLevelPressure = WeatherHelper.MeanSeaLevel;
+    Console.WriteLine(string.Empty);
+    Console.WriteLine("Settings are pulled from PiDropLapse.ini");
+    Console.WriteLine(
+        " - If the program doesn't find the ini file when in runs a new one will be generated");
+    Console.WriteLine(" - Run PiDropLapse -WriteIni to write out a new ini file");
+    Console.WriteLine(" - For a Dropbox Upload to happen you need a valid AccessToken in the ini file");
+    Console.WriteLine(" - Some Camera Settings can be adjusted in the ini file");
+    Console.WriteLine(" - Set this up with cron to take a series of photos");
 
-            I2cConnectionSettings i2CSettings = new(busId, Bmx280Base.DefaultI2cAddress);
-            I2cDevice i2CDevice = I2cDevice.Create(i2CSettings);
-            using var i2CBmp280 = new Bmp280(i2CDevice)
-            {
-                TemperatureSampling = Sampling.HighResolution, PressureSampling = Sampling.HighResolution
-            };
+    Console.WriteLine(string.Empty);
+    Console.WriteLine(
+        "Created by Charles Miles - see https://github.com/cmiles/PiDropLapse for more information!");
 
-            // set higher sampling
-
-            // Perform a synchronous measurement
-            var readResult = await i2CBmp280.ReadAsync();
-
-            var temperature = readResult.Temperature;
-            Console.WriteLine($"Temperature: {readResult.Temperature?.DegreesFahrenheit:0.#}\u00B0F");
-
-            var pressure = readResult.Pressure;
-            Console.WriteLine($"Pressure: {readResult.Pressure?.Hectopascals:0.##}hPa");
-
-            if (temperature != null && pressure != null)
-            {
-                var altitude =
-                    WeatherHelper.CalculateAltitude(pressure.Value, defaultSeaLevelPressure, temperature.Value);
-                Console.WriteLine($"Calculated Altitude: {altitude.Feet:0,000}'");
-
-                var correctedPressure = WeatherHelper.CalculateBarometricPressure(pressure.Value,
-                    temperature.Value, stationHeight);
-
-                Console.WriteLine(
-                    $"Pressure corrected for altitude {stationHeight:F0}' (with average humidity): {correctedPressure.Hectopascals:0.##} hPa");
-            }
-
-            return (readResult.Temperature?.DegreesFahrenheit, readResult.Pressure?.Millibars);
-        }
-
-        private static async Task Main(string[] args)
-        {
-            //Simple parsing for help in the args
-            if (args.Length > 0 && args.Any(x => x.ToLower().Contains("help")))
-            {
-                Console.WriteLine("PiDropLapse Help");
-                Console.WriteLine("When you execute PiDropLapse it will attempt to:");
-                Console.WriteLine(" - Take a photo and save it in a subdirectory called 'Drops'");
-                Console.WriteLine(" - Upload the File to Dropbox");
-
-                Console.WriteLine();
-                Console.WriteLine("Settings are pulled from PiDropLapse.ini");
-                Console.WriteLine(
-                    " - If the program doesn't find the ini file when in runs a new one will be generated");
-                Console.WriteLine(" - Run PiDropLapse -WriteIni to write out a new ini file");
-                Console.WriteLine(" - For a Dropbox Upload to happen you need a valid AccessToken in the ini file");
-                Console.WriteLine(" - Some Camera Settings can be adjusted in the ini file");
-                Console.WriteLine(" - Set this up with cron to take a series of photos");
-
-                Console.WriteLine();
-                Console.WriteLine(
-                    "Created by Charles Miles - see https://github.com/cmiles/PiDropLapse for more information!");
-
-                return;
-            }
-
-            //Setup the config file
-            var configFile = new FileInfo(Path.Combine(AppContext.BaseDirectory, "PiDropLapse.ini"));
-
-            //Simple parsing for writeini in the args
-            if (args.Length > 0 && args.Any(x => x.ToLower().Contains("writeini")))
-            {
-                if (configFile.Exists)
-                {
-                    Console.WriteLine(
-                        $"Sorry - Won't overwrite an existing config - delete or rename {configFile.FullName} and then use -WriteIni again to create a fresh settings file.");
-                    return;
-                }
-
-                Console.WriteLine($"Writing New Settings File to {configFile.FullName}...");
-                var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
-                setupConfig.SaveToFile(configFile.FullName);
-                return;
-            }
-
-
-            var executionTime = DateTime.Now;
-            Console.WriteLine($"Starting PiDropLapse Starting - {executionTime:yyyy-MM-dd-HH-mm-ss}");
-
-
-            Console.WriteLine($"Getting Config File - {configFile.FullName}");
-            if (!configFile.Exists)
-            {
-                Console.WriteLine("No Config File Found - writing Defaults");
-                var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
-                setupConfig.SaveToFile(configFile.FullName);
-            }
-
-
-            Console.WriteLine("Loading Config File");
-            var configInformation = Configuration.LoadFromFile(configFile.FullName);
-            PiDropLapseSettings config;
-            try
-            {
-                Console.WriteLine("Parsing Config File");
-                config = configInformation["Main"].ToObject<PiDropLapseSettings>();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Trouble Parsing Config - Using Defaults... Error {e}");
-                config = new PiDropLapseSettings();
-            }
-
-            Console.WriteLine("Config:");
-            Console.WriteLine(ObjectDumper.Dump(config,
-                new DumpOptions
-                    {ExcludeProperties = new List<string> {"DropboxAccessToken"}, DumpStyle = DumpStyle.Console}));
-
-            (double? temperatureFahrenheit, double? pressureMillibars) bmp280TemperatureAndPressure = (null, null);
-
-            try
-            {
-                bmp280TemperatureAndPressure = await GetBmp280TemperatureAndPressure();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Trouble Getting Temperature - {e}");
-            }
-
-            var targetDirectory = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Drops"));
-            Console.WriteLine($"Local photo directory: {targetDirectory.FullName}");
-            if (!targetDirectory.Exists) targetDirectory.Create();
-
-
-            var filePrefix = (DateTime.MaxValue - DateTime.Now).TotalHours.ToString("00000000");
-            Console.WriteLine($"Photo prefix {filePrefix}");
-
-
-            var targetFile = new FileInfo(Path.Combine(targetDirectory.FullName,
-                $"{filePrefix}--{config.FileIdentifierName}--{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jpg"));
-            if (targetFile.Exists)
-            {
-                Console.WriteLine("Deleting Previous Photo");
-                targetFile.Delete();
-                targetFile.Refresh();
-            }
-
-
-            Console.WriteLine("Initializing Camera");
-            MMALCamera piCamera = MMALCamera.Instance;
-            MMALCameraConfig.ISO = config.Iso;
-            MMALCameraConfig.ShutterSpeed = config.ExposureTimeInMicroSeconds;
-            MMALCameraConfig.Rotation = config.Rotation;
-            MMALCameraConfig.ExposureCompensation = config.ExposureCompensation;
-            if (MMALCameraConfig.Rotation == 0 || MMALCameraConfig.Rotation == 180)
-                MMALCameraConfig.StillResolution = new Resolution(config.LongEdgeResolution,
-                    config.LongEdgeResolution / 16 * 9);
-            if (MMALCameraConfig.Rotation == 90 || MMALCameraConfig.Rotation == 270)
-                MMALCameraConfig.StillResolution =
-                    new Resolution(config.LongEdgeResolution / 16 * 9, config.LongEdgeResolution);
-
-            using (var imgCaptureHandler = new ImageStreamCaptureHandler(targetFile.FullName))
-            {
-                piCamera.ConfigureCameraSettings(imgCaptureHandler);
-                Console.WriteLine("Taking Photo");
-                await piCamera.TakePicture(imgCaptureHandler, MMALEncoding.JPEG, MMALEncoding.I420);
-            }
-
-            Console.WriteLine("Cleaning Up");
-            piCamera.Cleanup();
-
-            Console.WriteLine("Loading file to write date");
-            Image bmp;
-
-            //Read the photo, delete it - draw the text on it and save it
-            await using (FileStream fs = new(targetFile.FullName, FileMode.Open))
-            {
-                bmp = Image.FromStream(fs);
-                fs.Close();
-            }
-
-            targetFile.Delete();
-
-            //Write the date into the top left of the photo using approximately 1/3
-            //of the width of the photo or a minimum of Verdana 12
-
-            Console.WriteLine("Writing date");
-            Graphics g = Graphics.FromImage(bmp);
-            var width = (int) g.VisibleClipBounds.Width;
-            Console.WriteLine($"Photo Width {width}");
-
-            var photoTextDetails = new List<string>();
-            photoTextDetails.Add(executionTime.ToString("yyyy-MM-dd HH:mm:ss"));
-
-            if (bmp280TemperatureAndPressure.temperatureFahrenheit != null)
-                photoTextDetails.Add($"{bmp280TemperatureAndPressure.temperatureFahrenheit:0.#}\u00B0F");
-
-            if (bmp280TemperatureAndPressure.pressureMillibars != null)
-                photoTextDetails.Add($"{bmp280TemperatureAndPressure.pressureMillibars:0.#}mb");
-
-            var photoText = string.Join(" - ", photoTextDetails);
-
-            var adjustedFont = TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), width / 3, 12, 128);
-            Console.WriteLine($"Adjusted Font Size - {adjustedFont.Size}");
-            g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 20));
-
-            Console.WriteLine("Saving file with date written");
-            bmp.Save(targetFile.FullName);
-            targetFile.Refresh();
-            Console.WriteLine($"{targetFile.FullName} -- File Length {targetFile.Length}");
-
-            //If we have a DropboxAccessToken upload to Dropbox
-            if (string.IsNullOrWhiteSpace(config.DropboxAccessToken))
-            {
-                Console.WriteLine("Did not find a DropboxAccessToken - skipping Dropbox processing and ending...");
-                return;
-            }
-
-            Console.WriteLine("Found a Dropbox Access Token - Starting Dropbox Connection");
-
-            DropboxClient dropClient;
-            try
-            {
-                dropClient = new DropboxClient(config.DropboxAccessToken.Trim());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return;
-            }
-
-            Console.WriteLine("Starting Dropbox Upload...");
-            var dropboxUploadResult =
-                await dropClient.Files.UploadAsync(new CommitInfo($@"/{targetFile.Name}"), targetFile.OpenRead());
-            Console.WriteLine($"Dropbox File Uploaded {dropboxUploadResult.PathDisplay}");
-        }
-
-        /// <summary>
-        ///     Returns a font (inside the specified range) that is the largest font
-        ///     that will fit inside the given width.
-        /// </summary>
-        /// <param name="g"></param>
-        /// <param name="stringToDraw"></param>
-        /// <param name="referenceFont"></param>
-        /// <param name="maxWidth"></param>
-        /// <param name="minimumFontSize"></param>
-        /// <param name="maximumFontSize"></param>
-        /// <returns></returns>
-        public static Font TryAdjustFontSizeToFitWidth(Graphics g, string stringToDraw, Font referenceFont,
-            int maxWidth, int minimumFontSize, int maximumFontSize)
-        {
-            //Based on https://docs.microsoft.com/en-us/previous-versions/bb986765(v=msdn.10)?redirectedfrom=MSDN 
-            //with thanks to https://stackoverflow.com/questions/15571715/auto-resize-font-to-fit-rectangle/30567857 for the link;
-
-            Font testFont = new(referenceFont.Name, referenceFont.Size, referenceFont.Style);
-
-            for (var testSize = maximumFontSize; testSize >= minimumFontSize; testSize--)
-            {
-                testFont = new Font(referenceFont.Name, testSize, referenceFont.Style);
-
-                // Test the string with the new size
-                var adjustedSizeNew = g.MeasureString(stringToDraw, testFont);
-
-                if (maxWidth > Convert.ToInt32(adjustedSizeNew.Width))
-                    // First font to fit - return it
-                    return testFont;
-            }
-
-            return testFont;
-        }
-
-        private record DhtReading(bool ValidReading, double Fahrenheit, double Celsius, double HumidityPercentage);
-    }
+    return;
 }
+
+//
+// Ini Setup
+//
+var configFile = new FileInfo(Path.Combine(AppContext.BaseDirectory, "PiDropLapse.ini"));
+
+//Simple parsing for writeini in the args
+if (args.Length > 0 && args.Any(x => x.ToLower().Contains("writeini")))
+{
+    if (configFile.Exists)
+    {
+        Console.WriteLine(Red(
+            $"Sorry - Won't overwrite an existing config - delete or rename {configFile.FullName} and then use -WriteIni again to create a fresh settings file."));
+        Console.WriteLine();
+        return;
+    }
+
+    Console.WriteLine($"Writing New Settings File to {Green(configFile.FullName)}...");
+    Console.WriteLine();
+    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
+    setupConfig.SaveToFile(configFile.FullName);
+    return;
+}
+
+//
+// Setup execution time and Photo Details
+//
+var executionTime = DateTime.Now;
+var photoTextDetails = new List<string>();
+photoTextDetails.Add(executionTime.ToString("yyyy-MM-dd HH:mm:ss"));
+Console.WriteLine();
+Console.WriteLine($"Starting PiDropLapse Starting - {executionTime:yyyy-MM-dd-HH-mm-ss}");
+Console.WriteLine();
+
+//
+// Process Ini File
+//
+Console.WriteLine($"Getting Config File - {Green(configFile.FullName)}");
+if (!configFile.Exists)
+{
+    Console.WriteLine(Yellow("No Config File Found - writing Defaults"));
+    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
+    setupConfig.SaveToFile(configFile.FullName);
+}
+
+Console.WriteLine("Loading Config File");
+var configInformation = Configuration.LoadFromFile(configFile.FullName);
+PiDropLapseSettings config;
+try
+{
+    Console.WriteLine("Parsing Config File");
+    config = configInformation["Main"].ToObject<PiDropLapseSettings>();
+}
+catch (Exception e)
+{
+    Console.WriteLine(Red($"Trouble Parsing Config - Using Defaults... Error {e}"));
+    Console.WriteLine();
+    config = new PiDropLapseSettings();
+}
+
+Console.WriteLine("Config:");
+Console.WriteLine(Cyan(ObjectDumper.Dump(config,
+    new DumpOptions
+        {ExcludeProperties = new List<string> {"DropboxAccessToken"}, DumpStyle = DumpStyle.Console})));
+Console.WriteLine();
+
+//
+// Possible BMP280 Sensor
+//
+if (config.UseBmp280Sensor)
+{
+    Console.WriteLine("Trying BMP280 Temp and Pressure Sensor via I2C...");
+    try
+    {
+        var (temperatureFahrenheit, pressureMillibars) = await Sensors.GetBmp280TemperatureAndPressure();
+
+        if (temperatureFahrenheit != null)
+            photoTextDetails.Add($"{temperatureFahrenheit:0.#}\u00B0F");
+        if (pressureMillibars != null)
+            photoTextDetails.Add($"{pressureMillibars:0.#}mb");
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"{Yellow("Trouble Getting BMP280 Readings")}{Environment.NewLine}{e}");
+    }
+
+    Console.WriteLine();
+}
+
+//
+// Setup Photo Directory and File
+//
+var photoTargetDirectory = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Drops"));
+Console.WriteLine($"Local photo directory: {photoTargetDirectory.FullName}");
+if (!photoTargetDirectory.Exists) photoTargetDirectory.Create();
+var photoFilePrefix = (DateTime.MaxValue - DateTime.Now).TotalHours.ToString("00000000");
+Console.WriteLine($"Photo prefix {photoFilePrefix}");
+var photoTargetFile = new FileInfo(Path.Combine(photoTargetDirectory.FullName,
+    $"{photoFilePrefix}--{config.FileIdentifierName}--{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jpg"));
+if (photoTargetFile.Exists)
+{
+    Console.WriteLine(Yellow("Deleting Previous Photo"));
+    photoTargetFile.Delete();
+    photoTargetFile.Refresh();
+}
+
+//
+// Camera Setup and Capture
+//
+Console.WriteLine("Initializing Camera");
+MMALCamera piCamera = MMALCamera.Instance;
+MMALCameraConfig.ISO = config.Iso;
+MMALCameraConfig.ShutterSpeed = config.ExposureTimeInMicroSeconds;
+MMALCameraConfig.Rotation = config.Rotation;
+MMALCameraConfig.ExposureCompensation = config.ExposureCompensation;
+if (MMALCameraConfig.Rotation == 0 || MMALCameraConfig.Rotation == 180)
+    MMALCameraConfig.StillResolution = new Resolution(config.LongEdgeResolution,
+        config.LongEdgeResolution / 16 * 9);
+if (MMALCameraConfig.Rotation == 90 || MMALCameraConfig.Rotation == 270)
+    MMALCameraConfig.StillResolution =
+        new Resolution(config.LongEdgeResolution / 16 * 9, config.LongEdgeResolution);
+using (var imgCaptureHandler = new ImageStreamCaptureHandler(photoTargetFile.FullName))
+{
+    piCamera.ConfigureCameraSettings(imgCaptureHandler);
+    Console.WriteLine(Green("Taking Photo"));
+    await piCamera.TakePicture(imgCaptureHandler, MMALEncoding.JPEG, MMALEncoding.I420);
+}
+
+Console.WriteLine("Cleaning Up");
+piCamera.Cleanup();
+Console.WriteLine();
+
+//
+// Write Information onto Photo
+//
+Console.WriteLine("Loading file to write date");
+Image bmp;
+await using (FileStream fs = new(photoTargetFile.FullName, FileMode.Open))
+{
+    bmp = Image.FromStream(fs);
+    fs.Close();
+}
+
+photoTargetFile.Delete();
+
+//Write the date into the top left of the photo using approximately 1/3
+//of the width of the photo or a minimum of Verdana 12
+var photoText = string.Join(" - ", photoTextDetails);
+Console.WriteLine($"Writing information onto photo - {Green(photoText)}");
+Graphics g = Graphics.FromImage(bmp);
+var width = (int) g.VisibleClipBounds.Width;
+Console.WriteLine($"Photo Width {width}");
+var adjustedFont = ImageHelpers.TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), width / 3, 12, 128);
+Console.WriteLine($"Adjusted Font Size - {adjustedFont.Size}");
+g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 20));
+Console.WriteLine("Saving file with information written");
+bmp.Save(photoTargetFile.FullName);
+photoTargetFile.Refresh();
+Console.WriteLine($"{Green(photoTargetFile.FullName)} -- File Length {photoTargetFile.Length}");
+Console.WriteLine();
+
+//
+// Dropbox Upload
+//
+if (string.IsNullOrWhiteSpace(config.DropboxAccessToken))
+{
+    Console.WriteLine("Did not find a DropboxAccessToken - skipping Dropbox processing and ending...");
+    Console.WriteLine();
+    return;
+}
+
+Console.WriteLine($"Found a Dropbox Access Token - {Green("Opening Dropbox Connection")}");
+DropboxClient dropClient;
+try
+{
+    dropClient = new DropboxClient(config.DropboxAccessToken.Trim());
+}
+catch (Exception e)
+{
+    Console.WriteLine(Red($"Dropbox Exception:{Environment.NewLine}{e}"));
+    return;
+}
+
+Console.WriteLine("Starting Dropbox Upload...");
+var dropboxUploadResult =
+    await dropClient.Files.UploadAsync(new CommitInfo($@"/{photoTargetFile.Name}"), photoTargetFile.OpenRead());
+Console.WriteLine($"Dropbox File Uploaded (PiDropLapse App Directory){Green(dropboxUploadResult.PathDisplay)}");
+Console.WriteLine();

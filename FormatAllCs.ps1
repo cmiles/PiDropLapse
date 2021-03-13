@@ -1,0 +1,1 @@
+jb cleanupcode .\PiDropLapse.sln --include='**.cs';
