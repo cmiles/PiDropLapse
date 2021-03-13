@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.30914.41
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PiDropLapse", "PiDropLapse\PiDropLapse.csproj", "{EDA17496-86EE-4140-8DC1-BCD7060CB825}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Unosquare.WiringPi", "Unosquare.WiringPi\Unosquare.WiringPi.csproj", "{83BEBF9E-2098-4523-B41D-4A27D5E567BA}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,14 +21,6 @@ Global
 		{EDA17496-86EE-4140-8DC1-BCD7060CB825}.Release|Any CPU.Build.0 = Release|Any CPU
 		{EDA17496-86EE-4140-8DC1-BCD7060CB825}.Release|x64.ActiveCfg = Release|x64
 		{EDA17496-86EE-4140-8DC1-BCD7060CB825}.Release|x64.Build.0 = Release|x64
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Debug|x64.Build.0 = Debug|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Release|x64.ActiveCfg = Release|Any CPU
-		{83BEBF9E-2098-4523-B41D-4A27D5E567BA}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

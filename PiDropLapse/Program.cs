@@ -1,23 +1,72 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Device.I2c;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dropbox.Api;
 using Dropbox.Api.Files;
+using Iot.Device.Bmxx80;
+using Iot.Device.Common;
 using MMALSharp;
 using MMALSharp.Common;
 using MMALSharp.Common.Utility;
 using MMALSharp.Handlers;
 using SharpConfig;
+using UnitsNet;
 
 namespace PiDropLapse
 {
     internal class Program
     {
-        private record DhtReading(bool ValidReading, double Fahrenheit, double Celsius, double HumidityPercentage);
+        public static async Task<(double? temperatureFahrenheit, double? pressureMillibars)>
+            GetBmp280TemperatureAndPressure()
+        {
+            //
+            // Use BMP280
+            //  
+            var stationHeight = Length.FromFeet(2307); // Elevation of the sensor
+
+            // bus id on the raspberry pi 3 and 4
+            const int busId = 1;
+            // set this to the current sea level pressure in the area for correct altitude readings
+            var defaultSeaLevelPressure = WeatherHelper.MeanSeaLevel;
+
+            I2cConnectionSettings i2CSettings = new(busId, Bmx280Base.DefaultI2cAddress);
+            I2cDevice i2CDevice = I2cDevice.Create(i2CSettings);
+            using var i2CBmp280 = new Bmp280(i2CDevice)
+            {
+                TemperatureSampling = Sampling.HighResolution, PressureSampling = Sampling.HighResolution
+            };
+
+            // set higher sampling
+
+            // Perform a synchronous measurement
+            var readResult = await i2CBmp280.ReadAsync();
+
+            var temperature = readResult.Temperature;
+            Console.WriteLine($"Temperature: {readResult.Temperature?.DegreesFahrenheit:0.#}\u00B0F");
+
+            var pressure = readResult.Pressure;
+            Console.WriteLine($"Pressure: {readResult.Pressure?.Hectopascals:0.##}hPa");
+
+            if (temperature != null && pressure != null)
+            {
+                var altitude =
+                    WeatherHelper.CalculateAltitude(pressure.Value, defaultSeaLevelPressure, temperature.Value);
+                Console.WriteLine($"Calculated Altitude: {altitude.Feet:0,000}'");
+
+                var correctedPressure = WeatherHelper.CalculateBarometricPressure(pressure.Value,
+                    temperature.Value, stationHeight);
+
+                Console.WriteLine(
+                    $"Pressure corrected for altitude {stationHeight:F0}' (with average humidity): {correctedPressure.Hectopascals:0.##} hPa");
+            }
+
+            return (readResult.Temperature?.DegreesFahrenheit, readResult.Pressure?.Millibars);
+        }
 
         private static async Task Main(string[] args)
         {
@@ -93,8 +142,20 @@ namespace PiDropLapse
             }
 
             Console.WriteLine("Config:");
-            Console.WriteLine(ObjectDumper.Dump(config, new DumpOptions {ExcludeProperties = new List<string> { "DropboxAccessToken" }, DumpStyle = DumpStyle.Console}));
+            Console.WriteLine(ObjectDumper.Dump(config,
+                new DumpOptions
+                    {ExcludeProperties = new List<string> {"DropboxAccessToken"}, DumpStyle = DumpStyle.Console}));
 
+            (double? temperatureFahrenheit, double? pressureMillibars) bmp280TemperatureAndPressure = (null, null);
+
+            try
+            {
+                bmp280TemperatureAndPressure = await GetBmp280TemperatureAndPressure();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Trouble Getting Temperature - {e}");
+            }
 
             var targetDirectory = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Drops"));
             Console.WriteLine($"Local photo directory: {targetDirectory.FullName}");
@@ -158,16 +219,25 @@ namespace PiDropLapse
             var width = (int) g.VisibleClipBounds.Width;
             Console.WriteLine($"Photo Width {width}");
 
-            string dateText = executionTime.ToString("yyyy-MM-dd HH:mm:ss");
-            var adjustedFont = TryAdjustFontSizeToFitWidth(g, dateText, new Font("Verdana", 12), width / 3, 12, 128);
+            var photoTextDetails = new List<string>();
+            photoTextDetails.Add(executionTime.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            if (bmp280TemperatureAndPressure.temperatureFahrenheit != null)
+                photoTextDetails.Add($"{bmp280TemperatureAndPressure.temperatureFahrenheit:0.#}\u00B0F");
+
+            if (bmp280TemperatureAndPressure.pressureMillibars != null)
+                photoTextDetails.Add($"{bmp280TemperatureAndPressure.pressureMillibars:0.#}mb");
+
+            var photoText = string.Join(" - ", photoTextDetails);
+
+            var adjustedFont = TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), width / 3, 12, 128);
             Console.WriteLine($"Adjusted Font Size - {adjustedFont.Size}");
-            g.DrawString(dateText, adjustedFont, Brushes.Red, new PointF(20, 20));
+            g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 20));
 
             Console.WriteLine("Saving file with date written");
             bmp.Save(targetFile.FullName);
             targetFile.Refresh();
             Console.WriteLine($"{targetFile.FullName} -- File Length {targetFile.Length}");
-
 
             //If we have a DropboxAccessToken upload to Dropbox
             if (string.IsNullOrWhiteSpace(config.DropboxAccessToken))
@@ -228,6 +298,7 @@ namespace PiDropLapse
 
             return testFont;
         }
-        
+
+        private record DhtReading(bool ValidReading, double Fahrenheit, double Celsius, double HumidityPercentage);
     }
 }
