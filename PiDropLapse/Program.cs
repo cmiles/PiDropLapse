@@ -192,14 +192,19 @@ var photoText = string.Join(" - ", photoTextDetails);
 Console.WriteLine($"Writing information onto photo - {Green(photoText)}");
 Graphics g = Graphics.FromImage(bmp);
 var width = (int) g.VisibleClipBounds.Width;
-Console.WriteLine($"Photo Width {width}");
-var adjustedFont = ImageHelpers.TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), width / 3, 12, 128);
+var height = (int) g.VisibleClipBounds.Height;
+var maxHeight = width >= height ? height / 6 : height / 5;
+var maxWidth = width - 40;
+Console.WriteLine($"Photo Width {width}, Height {height}, Max Height {maxHeight}, Max Width {maxWidth}");
+var adjustedFont =
+    ImageHelpers.TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), maxWidth, maxHeight, 12,
+        128);
 Console.WriteLine($"Adjusted Font Size - {adjustedFont.Size}");
-g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 20));
+g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 40));
 Console.WriteLine("Saving file with information written");
 bmp.Save(photoTargetFile.FullName);
 photoTargetFile.Refresh();
-Console.WriteLine($"{Green(photoTargetFile.FullName)} -- File Length {photoTargetFile.Length}");
+Console.WriteLine($"{Green(photoTargetFile.FullName)} - File Length {photoTargetFile.Length}");
 Console.WriteLine();
 
 //

@@ -13,11 +13,12 @@ namespace PiDropLapse
         /// <param name="stringToDraw"></param>
         /// <param name="referenceFont"></param>
         /// <param name="maxWidth"></param>
+        /// <param name="maxHeight"></param>
         /// <param name="minimumFontSize"></param>
         /// <param name="maximumFontSize"></param>
         /// <returns></returns>
         public static Font TryAdjustFontSizeToFitWidth(Graphics g, string stringToDraw, Font referenceFont,
-            int maxWidth, int minimumFontSize, int maximumFontSize)
+            int maxWidth, int maxHeight, int minimumFontSize, int maximumFontSize)
         {
             // ReSharper disable once CommentTypo
             //Based on https://docs.microsoft.com/en-us/previous-versions/bb986765(v=msdn.10)?redirectedfrom=MSDN 
@@ -32,7 +33,8 @@ namespace PiDropLapse
                 // Test the string with the new size
                 var adjustedSizeNew = g.MeasureString(stringToDraw, testFont);
 
-                if (maxWidth > Convert.ToInt32(adjustedSizeNew.Width))
+                if (maxWidth > Convert.ToInt32(adjustedSizeNew.Width) &&
+                    maxHeight > Convert.ToInt32(adjustedSizeNew.Height))
                     // First font to fit - return it
                     return testFont;
             }
