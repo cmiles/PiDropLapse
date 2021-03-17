@@ -10,7 +10,7 @@ using MMALSharp;
 using MMALSharp.Common;
 using MMALSharp.Common.Utility;
 using MMALSharp.Handlers;
-using PiDropLapse;
+using PiDropPhoto;
 using SharpConfig;
 using static Crayon.Output;
 

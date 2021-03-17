@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace PiDropLapse
+namespace PiDropPhoto
 {
     public static class ImageHelpers
     {

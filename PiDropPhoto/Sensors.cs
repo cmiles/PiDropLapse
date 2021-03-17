@@ -5,7 +5,7 @@ using Iot.Device.Bmxx80;
 using Iot.Device.Common;
 using static Crayon.Output;
 
-namespace PiDropLapse
+namespace PiDropPhoto
 {
     public static class Sensors
     {

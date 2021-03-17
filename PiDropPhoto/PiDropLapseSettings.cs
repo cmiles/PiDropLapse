@@ -1,4 +1,4 @@
-﻿namespace PiDropLapse
+﻿namespace PiDropPhoto
 {
     public class PiDropLapseSettings
     {
