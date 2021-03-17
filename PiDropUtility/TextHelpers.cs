@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections;
 using Pluralize.NET;
 using Topten.RichTextKit;
 
@@ -11,16 +6,8 @@ namespace PiDropUtility
 {
     public static class TextHelpers
     {
-
-
-        public static string PluralizeIfNeeded(this string toPluralizeIfNeeded, IList pluralizeIfMoreThanOne)
-        {
-            if (pluralizeIfMoreThanOne == null || pluralizeIfMoreThanOne.Count < 1) return toPluralizeIfNeeded;
-            var toPlural = new Pluralizer();
-            return toPlural.Pluralize(toPluralizeIfNeeded);
-        }
-
-        public static float AutoFitRichStringWidth(string stringContents, string fontFamily, int maxWidth, int maxHeight)
+        public static float AutoFitRichStringWidth(string stringContents, string fontFamily, int maxWidth,
+            int maxHeight)
         {
             var fontSize = 1;
 
@@ -36,6 +23,14 @@ namespace PiDropUtility
                     .Add(stringContents);
 
             return fontSize;
+        }
+
+
+        public static string PluralizeIfNeeded(this string toPluralizeIfNeeded, IList pluralizeIfMoreThanOne)
+        {
+            if (pluralizeIfMoreThanOne == null || pluralizeIfMoreThanOne.Count < 1) return toPluralizeIfNeeded;
+            var toPlural = new Pluralizer();
+            return toPlural.Pluralize(toPluralizeIfNeeded);
         }
     }
 }

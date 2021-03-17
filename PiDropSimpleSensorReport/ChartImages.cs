@@ -1,9 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microcharts;
 using PiDropUtility;
-using Pluralize.NET;
 using SkiaSharp;
 using Topten.RichTextKit;
 
@@ -47,7 +45,8 @@ namespace PiDropSimpleSensorReport
             var latestReading = readingsToUse.First();
 
             var fitSize =
-                TextHelpers.AutoFitRichStringWidth($"{latestReading.ReadingValue:0.0} - {latestReading.ReadingDateTime:M/dd HH}",
+                TextHelpers.AutoFitRichStringWidth(
+                    $"{latestReading.ReadingValue:0.0} - {latestReading.ReadingDateTime:M/dd HH}",
                     "Arial", 360, 40);
 
             var titleRichString = new RichString()
