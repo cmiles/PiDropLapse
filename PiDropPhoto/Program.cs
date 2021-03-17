@@ -1,11 +1,8 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using Dropbox.Api;
-using Dropbox.Api.Files;
 using MMALSharp;
 using MMALSharp.Common;
 using MMALSharp.Common.Utility;
@@ -24,16 +21,16 @@ using static Crayon.Output;
 //Simple parsing of command line for help in the args
 if (args.Length > 0 && args.Any(x => x.ToLower().Contains("help")))
 {
-    Console.WriteLine(Green("PiDropLapse Help"));
-    Console.WriteLine("When you execute PiDropLapse it will attempt to:");
+    Console.WriteLine(Green("PiDropPhoto Help"));
+    Console.WriteLine("When you execute PiDropPhoto it will attempt to:");
     Console.WriteLine(" - Take a photo and save it in a sub directory called 'Drops'");
     Console.WriteLine(" - Upload the File to Dropbox");
 
     Console.WriteLine(string.Empty);
-    Console.WriteLine("Settings are pulled from PiDropLapse.ini");
+    Console.WriteLine("Settings are pulled from PiDropPhoto.ini");
     Console.WriteLine(
         " - If the program doesn't find the ini file when in runs a new one will be generated");
-    Console.WriteLine(" - Run PiDropLapse -WriteIni to write out a new ini file");
+    Console.WriteLine(" - Run PiDropPhoto -WriteIni to write out a new ini file");
     Console.WriteLine(" - For a Dropbox Upload to happen you need a valid AccessToken in the ini file");
     Console.WriteLine(" - Some Camera Settings can be adjusted in the ini file");
     Console.WriteLine(" - Set this up with cron to take a series of photos");
@@ -180,7 +177,6 @@ Console.WriteLine();
 // Write Information onto Photo
 //
 Console.WriteLine("Loading file to write date");
-
 var photoBitmap = SKBitmap.Decode(photoTargetFile.FullName);
 var photoCanvas = new SKCanvas(photoBitmap);
 var width = photoBitmap.Width;
@@ -188,14 +184,11 @@ var height = photoBitmap.Height;
 var maxHeight = width >= height ? height / 6 : height / 5;
 var maxWidth = width - 50;
 Console.WriteLine($"Photo Width {width}, Height {height}, Max Height {maxHeight}, Max Width {maxWidth}");
-
 var photoText = string.Join(" - ", photoTextDetails);
 Console.WriteLine($"Photo information text - {Green(photoText)}");
-
 var adjustedFontSize =
-    TextHelpers.AutoFitRichStringWidth(  photoText,"Arial", maxWidth, maxHeight);
+    TextHelpers.AutoFitRichStringWidth(photoText, "Arial", maxWidth, maxHeight);
 Console.WriteLine($"Adjusted Font Size - {adjustedFontSize}");
-
 var titleRichString = new RichString()
     .FontFamily("Arial")
     .TextColor(SKColors.White)
@@ -203,14 +196,14 @@ var titleRichString = new RichString()
     .TextColor(SKColors.Red)
     .Add(photoText);
 titleRichString.Paint(photoCanvas, new SKPoint(20, 40));
-
 Console.WriteLine("Saving file with information written");
 photoCanvas.Flush();
-
 var finalPhoto = SKImage.FromBitmap(photoBitmap);
 var data = finalPhoto.Encode(SKEncodedImageFormat.Jpeg, 100);
 await using (var stream = new FileStream(photoTargetFile.FullName, FileMode.Create, FileAccess.Write))
+{
     data.SaveTo(stream);
+}
 
 photoTargetFile.Refresh();
 Console.WriteLine($"{Green(photoTargetFile.FullName)} - File Length {photoTargetFile.Length}");
@@ -226,20 +219,4 @@ if (string.IsNullOrWhiteSpace(config.DropboxAccessToken))
     return;
 }
 
-Console.WriteLine($"Found a Dropbox Access Token - {Green("Opening Dropbox Connection")}");
-DropboxClient dropClient;
-try
-{
-    dropClient = new DropboxClient(config.DropboxAccessToken.Trim());
-}
-catch (Exception e)
-{
-    Console.WriteLine(Red($"Dropbox Exception:{Environment.NewLine}{e}"));
-    return;
-}
-
-Console.WriteLine("Starting Dropbox Upload...");
-var dropboxUploadResult =
-    await dropClient.Files.UploadAsync(new CommitInfo($@"/{photoTargetFile.Name}"), photoTargetFile.OpenRead());
-Console.WriteLine($"Dropbox File Uploaded (PiDropLapse App Directory){Green(dropboxUploadResult.PathDisplay)}");
-Console.WriteLine();
+await DropboxHelpers.UploadFileToDropbox(photoTargetFile, config.DropboxAccessToken);
