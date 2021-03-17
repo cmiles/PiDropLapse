@@ -8,12 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Crayon" Version="2.0.60" />
-    <PackageReference Include="Dropbox.Api" Version="6.1.0" />
-    <PackageReference Include="Iot.Device.Bindings" Version="1.4.0-prerelease.21160.2" />
     <PackageReference Include="MMALSharp" Version="0.6.0" />
-    <PackageReference Include="ObjectDumper.NET" Version="3.0.20251.2-pre" />
-    <PackageReference Include="sharpconfig" Version="3.2.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PiDropUtility\PiDropUtility.csproj" />
   </ItemGroup>
 
 </Project>
