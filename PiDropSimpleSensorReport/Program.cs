@@ -2,7 +2,9 @@
 using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using PiDropPhoto;
 using PiDropSimpleSensorReport;
+using PiDropUtility;
 using SkiaSharp;
 using static Crayon.Output;
 
@@ -69,8 +71,8 @@ foreach (var typeLoop in recentEntryTypes)
 
     var entries = await dbContext.SensorReadings.Where(x => x.ReadingTag == typeLoop).ToListAsync();
 
-    var title = Helpers.SensorTitle(entries, SKColors.Red);
-    var chart = Helpers.SensorDataChart(entries, SKColors.Red);
+    var title = ChartImages.SensorTitle(entries, SKColors.Red);
+    var chart = ChartImages.SensorDataChart(entries, SKColors.Red);
 
     canvas.DrawImage(title, 0, currentGraphVerticalOffset);
     canvas.DrawImage(chart, 0, currentGraphVerticalOffset + 50);

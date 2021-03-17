@@ -11,7 +11,10 @@ using MMALSharp.Common;
 using MMALSharp.Common.Utility;
 using MMALSharp.Handlers;
 using PiDropPhoto;
+using PiDropUtility;
 using SharpConfig;
+using SkiaSharp;
+using Topten.RichTextKit;
 using static Crayon.Output;
 
 //
@@ -45,7 +48,7 @@ if (args.Length > 0 && args.Any(x => x.ToLower().Contains("help")))
 //
 // Ini Setup
 //
-var configFile = new FileInfo(Path.Combine(AppContext.BaseDirectory, "PiDropLapse.ini"));
+var configFile = new FileInfo(Path.Combine(AppContext.BaseDirectory, "PiDropPhoto.ini"));
 
 //Simple parsing for writeini in the args
 if (args.Length > 0 && args.Any(x => x.ToLower().Contains("writeini")))
@@ -60,7 +63,7 @@ if (args.Length > 0 && args.Any(x => x.ToLower().Contains("writeini")))
 
     Console.WriteLine($"Writing New Settings File to {Green(configFile.FullName)}...");
     Console.WriteLine();
-    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
+    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropPhotoSettings())};
     setupConfig.SaveToFile(configFile.FullName);
     return;
 }
@@ -72,7 +75,7 @@ var executionTime = DateTime.Now;
 var photoTextDetails = new List<string>();
 photoTextDetails.Add(executionTime.ToString("yyyy-MM-dd HH:mm:ss"));
 Console.WriteLine();
-Console.WriteLine($"Starting PiDropLapse Starting - {executionTime:yyyy-MM-dd-HH-mm-ss}");
+Console.WriteLine($"Starting PiDropPhoto Starting - {executionTime:yyyy-MM-dd-HH-mm-ss}");
 Console.WriteLine();
 
 //
@@ -82,23 +85,23 @@ Console.WriteLine($"Getting Config File - {Green(configFile.FullName)}");
 if (!configFile.Exists)
 {
     Console.WriteLine(Yellow("No Config File Found - writing Defaults"));
-    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropLapseSettings())};
+    var setupConfig = new Configuration {Section.FromObject("Main", new PiDropPhotoSettings())};
     setupConfig.SaveToFile(configFile.FullName);
 }
 
 Console.WriteLine("Loading Config File");
 var configInformation = Configuration.LoadFromFile(configFile.FullName);
-PiDropLapseSettings config;
+PiDropPhotoSettings config;
 try
 {
     Console.WriteLine("Parsing Config File");
-    config = configInformation["Main"].ToObject<PiDropLapseSettings>();
+    config = configInformation["Main"].ToObject<PiDropPhotoSettings>();
 }
 catch (Exception e)
 {
     Console.WriteLine(Red($"Trouble Parsing Config - Using Defaults... Error {e}"));
     Console.WriteLine();
-    config = new PiDropLapseSettings();
+    config = new PiDropPhotoSettings();
 }
 
 Console.WriteLine("Config:");
@@ -177,32 +180,38 @@ Console.WriteLine();
 // Write Information onto Photo
 //
 Console.WriteLine("Loading file to write date");
-Image bmp;
-await using (FileStream fs = new(photoTargetFile.FullName, FileMode.Open))
-{
-    bmp = Image.FromStream(fs);
-    fs.Close();
-}
 
-photoTargetFile.Delete();
-
-//Write the date into the top left of the photo using approximately 1/3
-//of the width of the photo or a minimum of Verdana 12
-var photoText = string.Join(" - ", photoTextDetails);
-Console.WriteLine($"Writing information onto photo - {Green(photoText)}");
-Graphics g = Graphics.FromImage(bmp);
-var width = (int) g.VisibleClipBounds.Width;
-var height = (int) g.VisibleClipBounds.Height;
+var photoBitmap = SKBitmap.Decode(photoTargetFile.FullName);
+var photoCanvas = new SKCanvas(photoBitmap);
+var width = photoBitmap.Width;
+var height = photoBitmap.Height;
 var maxHeight = width >= height ? height / 6 : height / 5;
-var maxWidth = width - 40;
+var maxWidth = width - 50;
 Console.WriteLine($"Photo Width {width}, Height {height}, Max Height {maxHeight}, Max Width {maxWidth}");
-var adjustedFont =
-    ImageHelpers.TryAdjustFontSizeToFitWidth(g, photoText, new Font("Verdana", 12), maxWidth, maxHeight, 12,
-        128);
-Console.WriteLine($"Adjusted Font Size - {adjustedFont.Size}");
-g.DrawString(photoText, adjustedFont, Brushes.Red, new PointF(20, 40));
+
+var photoText = string.Join(" - ", photoTextDetails);
+Console.WriteLine($"Photo information text - {Green(photoText)}");
+
+var adjustedFontSize =
+    TextHelpers.AutoFitRichStringWidth(  photoText,"Arial", maxWidth, maxHeight);
+Console.WriteLine($"Adjusted Font Size - {adjustedFontSize}");
+
+var titleRichString = new RichString()
+    .FontFamily("Arial")
+    .TextColor(SKColors.White)
+    .FontSize(adjustedFontSize)
+    .TextColor(SKColors.Red)
+    .Add(photoText);
+titleRichString.Paint(photoCanvas, new SKPoint(20, 40));
+
 Console.WriteLine("Saving file with information written");
-bmp.Save(photoTargetFile.FullName);
+photoCanvas.Flush();
+
+var finalPhoto = SKImage.FromBitmap(photoBitmap);
+var data = finalPhoto.Encode(SKEncodedImageFormat.Jpeg, 100);
+await using (var stream = new FileStream(photoTargetFile.FullName, FileMode.Create, FileAccess.Write))
+    data.SaveTo(stream);
+
 photoTargetFile.Refresh();
 Console.WriteLine($"{Green(photoTargetFile.FullName)} - File Length {photoTargetFile.Length}");
 Console.WriteLine();
