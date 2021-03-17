@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microcharts;
 using PiDropUtility;
@@ -11,12 +12,15 @@ namespace PiDropSimpleSensorReport
     {
         public static SKImage SensorDataChart(List<SensorReading> readings, SKColor readingColor)
         {
-            var readingsToUse = readings.OrderBy(x => x.ReadingDateTime).Take(14).ToList();
+            var readingsToUse = readings.OrderByDescending(x => x.ReadingDateTime).Take(14)
+                .OrderBy(x => x.ReadingDateTime).ToList();
+
             var chartData = readingsToUse
-                .Select(x => new ChartEntry((float) x.ReadingValue)
+                .Select(x => new ChartEntry((float) Math.Round(x.ReadingValue, 0.0))
                 {
-                    Color = SKColors.Red,
+                    Color = readingColor,
                     Label = $"{x.ReadingDateTime:M/dd HH}",
+                    TextColor = readingColor,
                     ValueLabel = $"{x.ReadingValue:0.0}",
                     ValueLabelColor = readingColor
                 }).ToList();
@@ -25,12 +29,14 @@ namespace PiDropSimpleSensorReport
             {
                 Entries = chartData,
                 IsAnimated = false,
+                AnimationDuration = new TimeSpan(0),
                 LabelTextSize = 28
             };
 
             var dataChartImage = new SKImageInfo(400, 600);
             var dataChartSurface = SKSurface.Create(dataChartImage);
             var dataChartCanvas = dataChartSurface.Canvas;
+            dataChartCanvas.Clear();
             dataChartCanvas.RotateDegrees(270, 300, 300);
 
             dataChart.DrawContent(dataChartCanvas, 600, 400);
@@ -41,8 +47,7 @@ namespace PiDropSimpleSensorReport
 
         public static SKImage SensorTitle(List<SensorReading> readings, SKColor readingColor)
         {
-            var readingsToUse = readings.OrderBy(x => x.ReadingDateTime).Take(12).ToList();
-            var latestReading = readingsToUse.First();
+            var latestReading = readings.OrderByDescending(x => x.ReadingDateTime).First();
 
             var fitSize =
                 TextHelpers.AutoFitRichStringWidth(

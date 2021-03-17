@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
@@ -156,15 +155,20 @@ var surface = SKSurface.Create(imageInfo);
 var canvas = surface.Canvas;
 var currentGraphVerticalOffset = 0;
 Console.WriteLine();
-
+var wellKnownReadTagsAndColors = new List<(string, SKColor)>
+    {("Pressure in mb", SKColors.Green), ("Temperature in F", SKColors.Red)};
 foreach (var typeLoop in recentEntryTypes)
 {
     Console.WriteLine($"Drawing Chart for {Green(typeLoop)}");
 
     var entries = await dbContext.SensorReadings.Where(x => x.ReadingTag == typeLoop).ToListAsync();
 
-    var title = ChartImages.SensorTitle(entries, SKColors.Red);
-    var chart = ChartImages.SensorDataChart(entries, SKColors.Red);
+    var chartColor = wellKnownReadTagsAndColors.Any(x => x.Item1 == typeLoop)
+        ? wellKnownReadTagsAndColors.Single(x => x.Item1 == typeLoop).Item2
+        : SKColors.AntiqueWhite;
+
+    var title = ChartImages.SensorTitle(entries, chartColor);
+    var chart = ChartImages.SensorDataChart(entries, chartColor);
 
     canvas.DrawImage(title, 0, currentGraphVerticalOffset);
     canvas.DrawImage(chart, 0, currentGraphVerticalOffset + 50);
@@ -179,14 +183,11 @@ foreach (var typeLoop in recentEntryTypes)
 var filePrefixForSorting = (DateTime.MaxValue - DateTime.Now).TotalHours.ToString("00000000");
 Console.WriteLine($"Photo prefix {filePrefixForSorting}");
 Console.WriteLine();
-
 var outputFileDirectory = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Drops"));
 if (!outputFileDirectory.Exists) outputFileDirectory.Create();
-
 var outputGraphicFile = new FileInfo(Path.Combine(outputFileDirectory.FullName,
     $"{filePrefixForSorting}-{config.FileIdentifierName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jpg"));
 Console.WriteLine($"Saving Chart as {Green(outputGraphicFile.FullName)}");
-
 using var image = surface.Snapshot();
 using var data = image.Encode(SKEncodedImageFormat.Jpeg, 80);
 await using (var stream = new FileStream(outputGraphicFile.FullName, FileMode.Create, FileAccess.Write))
