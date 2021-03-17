@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
@@ -155,6 +156,7 @@ var surface = SKSurface.Create(imageInfo);
 var canvas = surface.Canvas;
 var currentGraphVerticalOffset = 0;
 Console.WriteLine();
+
 foreach (var typeLoop in recentEntryTypes)
 {
     Console.WriteLine($"Drawing Chart for {Green(typeLoop)}");
@@ -177,16 +179,24 @@ foreach (var typeLoop in recentEntryTypes)
 var filePrefixForSorting = (DateTime.MaxValue - DateTime.Now).TotalHours.ToString("00000000");
 Console.WriteLine($"Photo prefix {filePrefixForSorting}");
 Console.WriteLine();
+
 var outputFileDirectory = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Drops"));
 if (!outputFileDirectory.Exists) outputFileDirectory.Create();
-var outputGraphicFile = Path.Combine(outputFileDirectory.FullName,
-    $"{filePrefixForSorting}-{config.FileIdentifierName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jpg");
-Console.WriteLine($"Saving Chart as {Green(outputGraphicFile)}");
+
+var outputGraphicFile = new FileInfo(Path.Combine(outputFileDirectory.FullName,
+    $"{filePrefixForSorting}-{config.FileIdentifierName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jpg"));
+Console.WriteLine($"Saving Chart as {Green(outputGraphicFile.FullName)}");
+
 using var image = surface.Snapshot();
 using var data = image.Encode(SKEncodedImageFormat.Jpeg, 80);
-await using var stream =
-    File.OpenWrite(outputGraphicFile);
-data.SaveTo(stream);
+await using (var stream = new FileStream(outputGraphicFile.FullName, FileMode.Create, FileAccess.Write))
+{
+    data.SaveTo(stream);
+}
+
+outputGraphicFile.Refresh();
+Console.WriteLine($"{Green(outputGraphicFile.FullName)} - File Length {outputGraphicFile.Length}");
+Console.WriteLine();
 
 //
 // Dropbox Upload
@@ -198,4 +208,4 @@ if (string.IsNullOrWhiteSpace(config.DropboxAccessToken))
     return;
 }
 
-await DropboxHelpers.UploadFileToDropbox(new FileInfo(outputGraphicFile), config.DropboxAccessToken);
+await DropboxHelpers.UploadFileToDropbox(outputGraphicFile, config.DropboxAccessToken);
