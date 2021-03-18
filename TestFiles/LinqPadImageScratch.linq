@@ -6,7 +6,7 @@
     <Driver Assembly="(internal)" PublicKeyToken="no-strong-name">LINQPad.Drivers.EFCore.DynamicDriver</Driver>
     <Database>PiDropLapse.db</Database>
     <DisplayName>PiDropGraphTest</DisplayName>
-    <AttachFileName>C:\Code\PiDropGraph\TestFiles\PiDropGraph.db</AttachFileName>
+    <AttachFileName>C:\Code\PiDropLapse02\TestFiles\PiDropLapse.db</AttachFileName>
     <DriverData>
       <EFProvider>Microsoft.EntityFrameworkCore.Sqlite</EFProvider>
     </DriverData>
@@ -24,10 +24,11 @@ Directory.SetCurrentDirectory (Path.GetDirectoryName (Util.CurrentQueryPath));
 
 var groupedReadings = SensorReadings.ToList().GroupBy(x => x.ReadingTag).ToList();
 
-var temperatureReadings = groupedReadings.Single(x => x.Key == "Temperature in F");
+var temperatureReadings = groupedReadings.Single(x => x.Key == "Pressure in mb");
 
-var temperatureMicroChartData = temperatureReadings
-	.OrderBy(x => x.ReadingDateTime)
+var readingsToUse = temperatureReadings.OrderByDescending(x => x.ReadingDateTime).Take(14).OrderBy(x => x.ReadingDateTime).ToList();
+
+var temperatureMicroChartData = readingsToUse
 	.Select(loopEntries => new ChartEntry((float)loopEntries.ReadingValue)
 	{
 		Color = SKColors.Red,
@@ -37,7 +38,7 @@ var temperatureMicroChartData = temperatureReadings
 		ValueLabelColor = SKColors.Red
 	}).ToList();
 
-var microChart = new Microcharts.LineChart()
+var microChart = new Microcharts.PointChart()
 {
 	Entries = temperatureMicroChartData,
 	IsAnimated = false,
