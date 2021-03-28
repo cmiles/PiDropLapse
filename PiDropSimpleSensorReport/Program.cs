@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using PiDropPhoto;
 using PiDropSimpleSensorReport;
 using PiDropUtility;
 using SharpConfig;

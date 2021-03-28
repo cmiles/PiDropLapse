@@ -117,6 +117,8 @@ if (config.UseBmp280Sensor)
     {
         var (temperatureFahrenheit, pressureMillibars) = await Sensors.GetBmp280TemperatureAndPressure();
 
+        if (temperatureFahrenheit != null || pressureMillibars != null)
+            photoTextDetails.Add("BMP280");
         if (temperatureFahrenheit != null)
             photoTextDetails.Add($"{temperatureFahrenheit:0.#}\u00B0F");
         if (pressureMillibars != null)
@@ -125,6 +127,25 @@ if (config.UseBmp280Sensor)
     catch (Exception e)
     {
         Console.WriteLine($"{Yellow("Trouble Getting BMP280 Readings")}{Environment.NewLine}{e}");
+    }
+
+    Console.WriteLine();
+}
+
+if (config.UseSi7021Sensor)
+{
+    Console.WriteLine("Trying Si7021 Temp and Humidity Sensor via I2C...");
+    try
+    {
+        var (temperatureFahrenheit, humidityPercent) = Sensors.GetSiTemperatureAndHumidity();
+
+        photoTextDetails.Add("Si7021");
+        photoTextDetails.Add($"{temperatureFahrenheit:0.#}\u00B0F");
+        photoTextDetails.Add($"rh {humidityPercent:0}%");
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"{Yellow("Trouble Getting Si7021 Readings")}{Environment.NewLine}{e}");
     }
 
     Console.WriteLine();

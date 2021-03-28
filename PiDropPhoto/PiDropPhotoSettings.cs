@@ -10,5 +10,6 @@
         public int LongEdgeResolution { get; set; } = 1280;
         public int Rotation { get; set; } = 0;
         public bool UseBmp280Sensor { get; set; } = false;
+        public bool UseSi7021Sensor { get; set; } = false;
     }
 }

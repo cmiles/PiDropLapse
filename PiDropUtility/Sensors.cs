@@ -3,9 +3,10 @@ using System.Device.I2c;
 using System.Threading.Tasks;
 using Iot.Device.Bmxx80;
 using Iot.Device.Common;
+using Iot.Device.Si7021;
 using static Crayon.Output;
 
-namespace PiDropPhoto
+namespace PiDropUtility
 {
     public static class Sensors
     {
@@ -46,6 +47,25 @@ namespace PiDropPhoto
             Console.WriteLine($"Calculated Altitude: {Green($"{altitude.Feet:0,000}")}");
 
             return (readResult.Temperature?.DegreesFahrenheit, readResult.Pressure?.Millibars);
+        }
+
+        public static (double temperatureFahrenheit, double relativeHumidityPercent) GetSiTemperatureAndHumidity()
+        {
+            // bus id on the raspberry pi 3 and 4
+            const int busId = 1;
+            // set this to the current sea level pressure in the area for correct altitude readings
+
+            I2cConnectionSettings i2CSettings = new(busId, Si7021.DefaultI2cAddress);
+            var i2CDevice = I2cDevice.Create(i2CSettings);
+            using var i2CSi7021 = new Si7021(i2CDevice);
+
+            var temperature = i2CSi7021.Temperature;
+            Console.WriteLine($"Temperature: {Green($"{temperature.DegreesFahrenheit:0.#}\u00B0F")}");
+            
+            var humidity = i2CSi7021.Humidity;
+            Console.WriteLine($"Humidity: {Green($"{humidity.Percent:0}%")}");
+
+            return (temperature.DegreesFahrenheit, humidity.Percent);
         }
     }
 }
