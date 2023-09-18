@@ -1,3 +1,11 @@
+## Archived...
+
+For several years my wife and I used this project and a Raspverry Pi 4b to monitor our birds - it worked really well! In recent years our needs have changed and we no longer make use of this setup so this project has been archived...
+
+Sometime after we stopped using this I did create another Pi based photo project - [PiSlicedDayPhotos](https://github.com/cmiles/PiSlicedDayPhotos). PiSlicedDayPhotos targets taking periodic landscape/outdoor photos from a Pi and is in use as I write this.
+
+This project was written for fun and for the love of programming! If you are here looking for something I hope you find a useful snippet, idea or piece of code - contact me if you have any questions - Charles Miles, 9/18/2023  
+
 # PiDropLapse
 
 This project is two .NET 5 console projects designed to collect information from a Raspberry Pi, save it locally and upload it to Dropbox:
